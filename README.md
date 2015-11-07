@@ -1,2 +1,2 @@
-Notwithstanding - An algorithm to fund conmpound words in a wordlist.
+Notwithstanding - An algorithm to find compound words in a wordlist.
 
