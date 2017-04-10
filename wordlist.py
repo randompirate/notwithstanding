@@ -13,8 +13,8 @@ va vc vs vt wa wk xx ye yr zn
 
 def loadwordlist(filename = 'wordsEN.txt'):
 	"""Retrieve a wordlist from a file location"""
-	words = [word.lower().strip() for word in open('wordsEN.txt','r')] 
-	words = [word for word in words if words not in IGNORESET]
+	words = [word.lower().strip() for word in open('wordsEN.txt','r')]
+	words = [word for word in words if word not in IGNORESET]
 	return [w for w in words if w]
 
 
@@ -22,4 +22,3 @@ def loadwordlist(filename = 'wordsEN.txt'):
 WORDLIST = loadwordlist()
 
 
-	

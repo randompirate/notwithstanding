@@ -5,77 +5,80 @@ import time
 #Wordlist module for constant WORDLIST, in-memory
 import wordlist as wl
 
+allwords = set(wl.WORDLIST) # Optimisation: Use a set. Constant lookup
+
 
 def memo(func):
-	"""Decorator for function memoisation"""
-	# TODO: Check memoisation sync across threads.
+  """Decorator for function memoisation"""
+  # TODO: Check memoisation sync across threads.
 
-	#Dictionary of called arguments already encountered
-	argdict = {}
+  #Dictionary of called arguments already encountered
+  argdict = {}
 
-	def retfun(*args):
-		arghash = str(args)
-		if arghash not in argdict:
-			#If the calling argument is not in the dictionary:
-			#	Calculate it and add to the dicionary
-			res = func(*args)		
-			argdict[arghash] = res
+  def retfun(*args):
+    arghash = str(args)
+    if arghash not in argdict:
+      #If the calling argument is not in the dictionary:
+      #  Calculate it and add to the dicionary
+      res = func(*args)
+      argdict[arghash] = res
 
-		#Return from the dictinoary
-		return argdict[arghash]
-	return retfun
+    #Return from the dictinoary
+    return argdict[arghash]
+  return retfun
 
 
 def getstarterwords(word):
-	"""Return all the words in wl.WORDLIST with which the given word starts.
-		For example: 'information' -> 'in', 'info', 'inform'
-	"""
-	return [w for w in wl.WORDLIST if word[0:len(w)]==w]# and len(w)<len(word)]
+  """Return all the words in allwords with which the given word starts.
+    For example: 'information' -> 'in', 'info', 'inform'
+  """
+  return [word[0:i] for i in range(len(word)) if word[0:i] in allwords]        # Optimisation: Smaller lookup set
+  # return [w for w in allwords if word[0:len(w)]==w]# and len(w)<len(word)]   # Not optimal.
 
 
 def splitword(word, start):
-	"""Split a starting string of from a word, return in tuple-form"""
-	return [start, word[len(start):]]
+  """Split a starting string of from a word, return in tuple-form"""
+  return [start, word[len(start):]]
 
-@memo 	#Memoisation decorator
+@memo   #Memoisation decorator
 def singlesplits(word):
-	"""Find all single splits of a word
-			Single splits are valid words with which the given word starts
-			This function is memoised
-	"""
-	#All starterwords: Words in the dictionary with which this word begins
-	starterwords = getstarterwords(word)
-	return [splitword(word, sw) for sw in starterwords]			#Return in tuple form
+  """Find all single splits of a word
+      Single splits are valid words with which the given word starts
+      This function is memoised
+  """
+  #All starterwords: Words in the dictionary with which this word begins
+  starterwords = getstarterwords(word)
+  return [splitword(word, sw) for sw in starterwords]      #Return in tuple form
 
 
 def compoundgenerator(words):
-	"""Generator
-		Split a long word into valid subwords.
-	 	For example 'without' -> 'with', 'out'
-	 				'inasmuch' -> 'in', 'as', 'much'
-	"""
-	*firstwords, lastword = words #Unpack the last element: [a, b, c, d, e] > [a, b, c, d], e
+  """Generator
+    Split a long word into valid subwords.
+     For example 'without' -> 'with', 'out'
+           'inasmuch' -> 'in', 'as', 'much'
+  """
+  *firstwords, lastword = words #Unpack the last element: [a, b, c, d, e] > [a, b, c, d], e
 
-	#Find all splits for the lastword
-	splits = singlesplits(lastword)
+  #Find all splits for the lastword
+  splits = singlesplits(lastword)
 
-	#For each possible split, recursively perform compoundgenerator on the remaining part
-	for split in splits:
-		yield from compoundgenerator(firstwords + split)
+  #For each possible split, recursively perform compoundgenerator on the remaining part
+  for split in splits:
+    yield from compoundgenerator(firstwords + split)
 
-	#If the remainder (after all possible splits) is a word, return it.
-	if lastword in wl.WORDLIST:
-		yield words
+  #If the remainder (after all possible splits) is a word, return it.
+  if lastword in allwords:
+    yield words
 
 
 def compoundlist(word):
-	"""Iterate a compoundgenerator and return the results as a list in-memory"""
-	return list(compoundgenerator([word]))
+  """Iterate a compoundgenerator and return the results as a list in-memory"""
+  return list(compoundgenerator([word]))
 
 
 def list2dict(lst):
-	"""Returns a dictionary for a list of results from compoundgenerator."""
-	return dict([[r[-1][0], r[0:-1]] for r in lst if r[0:-1]])
+  """Returns a dictionary for a list of results from compoundgenerator."""
+  return dict([[r[-1][0], r[0:-1]] for r in lst if r[0:-1]])
 
 
 #---------------#
@@ -83,28 +86,27 @@ def list2dict(lst):
 #---------------#
 def main(args):
 
-	"""Main entrance"""
+  """Main entrance"""
 
-	starttime = time.time()
+  starttime = time.time()
 
-	#Run the iterFunction in parallel.
-	pool = mp.Pool(processes=4)
-	results = pool.imap_unordered(compoundlist, wl.WORDLIST)
+  #Run the iterFunction in parallel.
+  pool = mp.Pool(processes=4)
+  results = pool.imap_unordered(compoundlist, allwords)
 
-	# Transform the results into a dictionary. The stream generators turn into in-memory datatypes now.
-	resdict = list2dict(results) 
+  # Transform the results into a dictionary. The stream generators turn into in-memory datatypes now.
+  resdict = list2dict(results)
 
-	#Pretty print
-	open('output.txt','w').write('\n'.join([k + ' : ' + ' // '.join([' '.join(itm) for itm in itms]) for k, itms in resdict.items()]))
+  #Pretty print
+  open('output.txt','w').write('\n'.join([k + ' : ' + ' // '.join([' '.join(itm) for itm in itms]) for k, itms in resdict.items()]))
 
-	print('\nTime spent: ', time.time() - starttime )
+  print('\nTime spent: ', time.time() - starttime )
 
 
 
 if __name__ == '__main__':
-	if sys.argv:
-		main(sys.argv)
-	else:
-		main(None)
+  if sys.argv:
+    main(sys.argv)
+  else:
+    main(None)
 
-	
